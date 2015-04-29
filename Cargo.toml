@@ -1,0 +1,7 @@
+[package]
+name = "symbolapi"
+version = "0.0.1"
+authors = ["Robert Helmer <rhelmer@rhelmer.org>"]
+
+[dependencies.hyper]
+git = "https://github.com/hyperium/hyper.git"
