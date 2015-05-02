@@ -6,7 +6,7 @@ function names in server-side symbol files (.SYM files).
 
 If you're interested in setting up local symbols for use with the Gecko profiler for Firefox, the following page will be useful to you:
 
-[Profiling with the Build in Profiler and Local Symbols on Windows](https://developer.mozilla.org/en/Performance/Profiling_with_the_Built-in_Profiler_and_Local_Symbols_on_Windows)
+[Profiling with the Built in Profiler and Local Symbols on Windows](https://developer.mozilla.org/en/Performance/Profiling_with_the_Built-in_Profiler_and_Local_Symbols_on_Windows)
 
 This project is inspired by the [Snappy Symbolication Server](https://github.com/mozilla/Snappy-Symbolication-Server/) and is intended
 as a drop-in replacement.
