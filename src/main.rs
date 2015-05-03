@@ -1,45 +1,46 @@
 extern crate hyper;
+extern crate toml;
 
-use std::io;
+use std::io::{Read, Write};
 
-use hyper::server::{Server, Request, Response};
 use hyper::Client;
-use hyper::status::StatusCode;
-use hyper::uri::RequestUri;
+
+use hyper::Server;
+use hyper::server::Request;
+use hyper::server::Response;
+use hyper::net::Fresh;
 
 fn main() {
     let address = "0.0.0.0:8080";
+
     println!("Listening on {}", address);
-    serve(address);
+    Server::http(server).listen(address).unwrap();
 }
 
-fn serve(address: &str) {
-    Server::http(|req: Request, mut res: Response| {
-        *res.status_mut() = match (req.method, req.uri) {
-            (hyper::Get, RequestUri::AbsolutePath(ref path)) if path == "/" => {
-                let url = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1/XUL/7B3E0143CD44393499AC712B4ACD26FC0/XUL.sym";
-                fetch(url);
-                StatusCode::Ok
-
-            },
-            (hyper::Get, _) => StatusCode::NotFound,
-            _ => StatusCode::MethodNotAllowed
-        };
-
-        res.start().unwrap().end().unwrap();
-    }).listen(address).unwrap();
-    println!("Listening on {}", address);
+fn server(_: Request, res: Response<Fresh>) {
+    let mut res = res.start().unwrap();
+    let symbol_url = &get_config("symbol_urls.public");
+    let symbol = &client(symbol_url).to_string();
+    let _ = res.write_all(symbol.as_bytes());
+    res.end().unwrap();
 }
 
-fn fetch(url: &str) {
-    let mut client = Client::new();
+fn client(url: &str) -> String {
+    let mut c = Client::new();
+    let mut res = c.get(url).send().unwrap();
+    let mut body = String::new();
+    res.read_to_string(&mut body).unwrap();
 
-    let mut res = match client.get(&*url).send() {
-        Ok(res) => res,
-        Err(err) => panic!("Failed to connect: {:?}", err)
-    };
+    body
+}
 
-    println!("Response: {}", res.status);
-    println!("Headers:\n{}", res.headers);
-    io::copy(&mut res, &mut io::stdout()).unwrap();
+fn get_config(value_name: &str) -> String {
+    let toml = r#"
+        [symbol_urls]
+        public = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1/"
+    "#;
+    // TODO support multiple URLs
+    let value: toml::Value = toml.parse().unwrap();
+
+    value.lookup(value_name).unwrap().as_str().unwrap().to_string()
 }

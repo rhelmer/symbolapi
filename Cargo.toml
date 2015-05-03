@@ -5,3 +5,6 @@ authors = ["Robert Helmer <rhelmer@rhelmer.org>"]
 
 [dependencies.hyper]
 git = "https://github.com/hyperium/hyper.git"
+
+[dependencies]
+toml = "0.1"
