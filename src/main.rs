@@ -2,6 +2,7 @@ extern crate hyper;
 extern crate toml;
 
 use std::io::{Read, Write};
+use std::thread;
 
 use hyper::Client;
 
@@ -17,21 +18,46 @@ fn main() {
     Server::http(server).listen(address).unwrap();
 }
 
-fn server(_: Request, res: Response<Fresh>) {
+fn server(mut req: Request, res: Response<Fresh>) {
+    let mut body = String::new();
+    match req.method {
+        hyper::Get => {
+            let _ = req.read_to_string(&mut body);
+            println!("debug1: {:?}", &body);
+        },
+        _ => { panic!("unhandled") },
+    }
     let mut res = res.start().unwrap();
-    let symbol_url = &get_config("symbol_urls.public");
-    let symbol = &client(symbol_url).to_string();
+    let symbol_url = get_config("symbol_urls.public");
+    let symbol = client(symbol_url);
     let _ = res.write_all(symbol.as_bytes());
     res.end().unwrap();
 }
 
-fn client(url: &str) -> String {
-    let mut c = Client::new();
-    let mut res = c.get(url).send().unwrap();
-    let mut body = String::new();
-    res.read_to_string(&mut body).unwrap();
+fn client(url: String) -> String {
+    let mut handles = vec![];
+    for i in 0..5 {
+        let this_url = url.clone();
+        handles.push(thread::spawn(move || {
+            let mut c = Client::new();
+            let mut res = c.get(&this_url).send().unwrap();
+            let mut body = String::new();
+            let _ = res.read_to_string(&mut body);
 
-    body
+            (i, body)
+        }));
+    }
+
+    let mut result = String::new();
+
+    for handle in handles {
+        let (i, body) = handle.join().unwrap();
+        for c in format!("{:?} {:?}\n", i, body).chars() {
+            result.push(c);
+        }
+    }
+
+    result
 }
 
 fn get_config(value_name: &str) -> String {
