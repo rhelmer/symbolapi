@@ -36,6 +36,7 @@ fn server(mut req: Request, res: Response<Fresh>) {
 
 fn client(url: String) -> String {
     let mut handles = vec![];
+    // TODO decide smart min/max possible threads
     for i in 0..5 {
         let this_url = url.clone();
         handles.push(thread::spawn(move || {
