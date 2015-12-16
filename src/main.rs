@@ -5,20 +5,16 @@ use std::io::{Read, Write};
 use std::thread;
 
 use hyper::Client;
-
-use hyper::Server;
-use hyper::server::Request;
-use hyper::server::Response;
-use hyper::net::Fresh;
+use hyper::server::{Server, Request, Response};
 
 fn main() {
     let address = "0.0.0.0:8080";
 
     println!("Listening on {}", address);
-    Server::http(server).listen(address).unwrap();
+    Server::http(address).unwrap().handle(server).unwrap();
 }
 
-fn server(mut req: Request, res: Response<Fresh>) {
+fn server(mut req: Request, res: Response) {
     let mut body = String::new();
     match req.method {
         hyper::Get => {
@@ -40,7 +36,7 @@ fn client(url: String) -> String {
     for i in 0..5 {
         let this_url = url.clone();
         handles.push(thread::spawn(move || {
-            let mut c = Client::new();
+            let c = Client::new();
             let mut res = c.get(&this_url).send().unwrap();
             let mut body = String::new();
             let _ = res.read_to_string(&mut body);
