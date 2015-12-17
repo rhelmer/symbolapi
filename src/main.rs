@@ -6,7 +6,6 @@ use rustc_serialize::json;
 
 use std::io::{Read, Write};
 use std::thread;
-use std::collections::HashMap;
 
 use hyper::Client;
 use hyper::server::{Server, Request, Response};
@@ -16,8 +15,8 @@ use hyper::status::StatusCode;
 #[allow(non_snake_case)]
 #[derive(RustcDecodable)]
 pub struct SymbolRequest {
-    memoryMap: Vec<HashMap<String,String>>,
-    stacks: Vec<HashMap<u8,u32>>,
+    memoryMap: Vec<Vec<String>>,
+    stacks: Vec<Vec<(i8,i64)>>,
     symbolSources: Vec<String>,
     version: u8,
 }
