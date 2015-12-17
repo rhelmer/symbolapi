@@ -67,6 +67,7 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
         let (symbol_name, _) = debug_file.split_at(pdb);
         let symbol_file = format!("{}.sym", symbol_name);
         let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
+
         // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
             let c = Client::new();
@@ -91,6 +92,7 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
 }
 
 fn get_config(value_name: &str) -> String {
+    // TODO move to actual file, static str for the moment
     let toml = r#"
         [symbol_urls]
         public = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1"
