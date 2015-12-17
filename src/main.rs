@@ -1,15 +1,16 @@
 extern crate hyper;
+extern crate rustc_serialize;
 extern crate toml;
 
-extern crate rustc_serialize;
-use rustc_serialize::json;
-
+use std::fs::File;
 use std::io::{Read, Write};
 use std::thread;
 
 use hyper::Client;
 use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
+
+use rustc_serialize::json;
 
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
@@ -33,6 +34,8 @@ fn main() {
   * Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
   */
 fn server(mut req: Request, mut res: Response) {
+    println!("DEBUG: incoming connection");
+
     match req.method {
         hyper::Post => {
             let mut res = res.start().unwrap();
@@ -40,6 +43,7 @@ fn server(mut req: Request, mut res: Response) {
             let mut buffer = String::new();
             let _ = req.read_to_string(&mut buffer);
             println!("DEBUG raw POST: {:?}", &buffer);
+
             let decoded: SymbolRequest = json::decode(&buffer).unwrap();
 
             println!("DEBUG decoded memoryMap: {:?}", decoded.memoryMap);
@@ -52,6 +56,7 @@ fn server(mut req: Request, mut res: Response) {
             let _ = res.write_all(symbols.as_bytes());
 
             res.end().unwrap();
+            println!("DEBUG finished");
         },
         _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
@@ -62,18 +67,19 @@ fn server(mut req: Request, mut res: Response) {
   */
 fn client(url: String, memory_map: Vec<(String,String)>) -> String {
     let mut handles = vec![];
+
     for (debug_file, debug_id) in memory_map {
         let pdb = debug_file.find(".pdb").unwrap();
         let (symbol_name, _) = debug_file.split_at(pdb);
         let symbol_file = format!("{}.sym", symbol_name);
         let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
 
-        // TODO decide min/max possible threads, possibly based on number of cores?
         // TODO most of the time is spent waiting on I/O, maybe async would be more appropriate?
+        // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
+            let mut body = String::new();
             let c = Client::new();
             let mut res = c.get(&this_url).send().unwrap();
-            let mut body = String::new();
             let _ = res.read_to_string(&mut body);
 
             (symbol_file, body)
@@ -84,6 +90,7 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
 
     for handle in handles {
         let (symbol_file, body) = handle.join().unwrap();
+
         for c in format!("{:?} {:?}\n", symbol_file, body).chars() {
             result.push(c);
         }
