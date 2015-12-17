@@ -94,7 +94,7 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
 
 fn get_config(value_name: &str) -> String {
     // TODO move to actual file, static str for the moment
-    let &'static toml = r#"
+    let toml: &'static str = r#"
         [symbol_urls]
         public = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1"
     "#;
