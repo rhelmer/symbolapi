@@ -11,11 +11,12 @@ use hyper::Client;
 use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
 
-// required JSON variables in structs are non-snakecase
+// required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcDecodable)]
 pub struct SymbolRequest {
     memoryMap: Vec<Vec<String>>,
+    // TODO check that key actually fits in 8-bit int
     stacks: Vec<Vec<(i8,i64)>>,
     symbolSources: Vec<String>,
     version: u8,
