@@ -69,6 +69,7 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
         let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
 
         // TODO decide min/max possible threads, possibly based on number of cores?
+        // TODO most of the time is spent waiting on I/O, maybe async would be more appropriate?
         handles.push(thread::spawn(move || {
             let c = Client::new();
             let mut res = c.get(&this_url).send().unwrap();
