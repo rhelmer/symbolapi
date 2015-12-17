@@ -6,6 +6,7 @@ use std::thread;
 
 use hyper::Client;
 use hyper::server::{Server, Request, Response};
+use hyper::status::StatusCode;
 
 fn main() {
     let address = "0.0.0.0:8080";
@@ -14,14 +15,14 @@ fn main() {
     Server::http(address).unwrap().handle(server).unwrap();
 }
 
-fn server(mut req: Request, res: Response) {
-    let mut body = String::new();
+fn server(mut req: Request, mut res: Response) {
     match req.method {
-        hyper::Get => {
-            let _ = req.read_to_string(&mut body);
-            println!("debug1: {:?}", &body);
+        hyper::Post => {
+            let mut buffer = String::new();
+            let _ = req.read_to_string(&mut buffer);
+            println!("debug1: {:?}", buffer);
         },
-        _ => { panic!("unhandled") },
+        _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
     let mut res = res.start().unwrap();
     let symbol_url = get_config("symbol_urls.public");
