@@ -62,12 +62,12 @@ fn server(mut req: Request, mut res: Response) {
   */
 fn client(url: String, memory_map: Vec<(String,String)>) -> String {
     let mut handles = vec![];
-    // TODO decide min/max possible threads, possibly based on number of cores?
     for (debug_file, debug_id) in memory_map {
         let pdb = debug_file.find(".pdb").unwrap();
         let (symbol_name, _) = debug_file.split_at(pdb);
         let symbol_file = format!("{}.sym", symbol_name);
         let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
+        // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
             let c = Client::new();
             let mut res = c.get(&this_url).send().unwrap();
@@ -81,8 +81,8 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
     let mut result = String::new();
 
     for handle in handles {
-        let (k, body) = handle.join().unwrap();
-        for c in format!("{:?} {:?}\n", k, body).chars() {
+        let (symbol_file, body) = handle.join().unwrap();
+        for c in format!("{:?} {:?}\n", symbol_file, body).chars() {
             result.push(c);
         }
     }
