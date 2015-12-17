@@ -1,12 +1,26 @@
 extern crate hyper;
 extern crate toml;
 
+extern crate rustc_serialize;
+use rustc_serialize::json;
+
 use std::io::{Read, Write};
 use std::thread;
+use std::collections::HashMap;
 
 use hyper::Client;
 use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
+
+// required JSON variables in structs are non-snakecase
+#[allow(non_snake_case)]
+#[derive(RustcDecodable)]
+pub struct SymbolRequest {
+    memoryMap: Vec<HashMap<String,String>>,
+    stacks: Vec<HashMap<u8,u32>>,
+    symbolSources: Vec<String>,
+    version: u8,
+}
 
 fn main() {
     let address = "0.0.0.0:8080";
@@ -20,7 +34,12 @@ fn server(mut req: Request, mut res: Response) {
         hyper::Post => {
             let mut buffer = String::new();
             let _ = req.read_to_string(&mut buffer);
-            println!("debug1: {:?}", buffer);
+            println!("DEBUG raw POST: {:?}", &buffer);
+            let decoded: SymbolRequest = json::decode(&buffer).unwrap();
+            println!("DEBUG decoded memoryMap: {:?}", decoded.memoryMap);
+            println!("DEBUG decoded stacks: {:?}", decoded.stacks);
+            println!("DEBUG decoded symbolSources: {:?}", decoded.symbolSources);
+            println!("DEBUG decoded version: {}", decoded.version);
         },
         _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
