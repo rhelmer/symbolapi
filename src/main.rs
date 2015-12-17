@@ -15,7 +15,7 @@ use hyper::status::StatusCode;
 #[allow(non_snake_case)]
 #[derive(RustcDecodable)]
 pub struct SymbolRequest {
-    memoryMap: Vec<Vec<String>>,
+    memoryMap: Vec<(String,String)>,
     // TODO check that key actually fits in 8-bit int
     stacks: Vec<Vec<(i8,i64)>>,
     symbolSources: Vec<String>,
@@ -29,47 +29,60 @@ fn main() {
     Server::http(address).unwrap().handle(server).unwrap();
 }
 
+/**
+  * Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
+  */
 fn server(mut req: Request, mut res: Response) {
     match req.method {
         hyper::Post => {
+            let mut res = res.start().unwrap();
+
             let mut buffer = String::new();
             let _ = req.read_to_string(&mut buffer);
             println!("DEBUG raw POST: {:?}", &buffer);
             let decoded: SymbolRequest = json::decode(&buffer).unwrap();
+
             println!("DEBUG decoded memoryMap: {:?}", decoded.memoryMap);
             println!("DEBUG decoded stacks: {:?}", decoded.stacks);
             println!("DEBUG decoded symbolSources: {:?}", decoded.symbolSources);
             println!("DEBUG decoded version: {}", decoded.version);
+
+            let symbol_url = get_config("symbol_urls.public");
+            let symbols = client(symbol_url, decoded.memoryMap);
+            let _ = res.write_all(symbols.as_bytes());
+
+            res.end().unwrap();
         },
         _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
-    let mut res = res.start().unwrap();
-    let symbol_url = get_config("symbol_urls.public");
-    let symbol = client(symbol_url);
-    let _ = res.write_all(symbol.as_bytes());
-    res.end().unwrap();
 }
 
-fn client(url: String) -> String {
+/**
+  * Creates multiple client connections and aggregates result.
+  */
+fn client(url: String, memory_map: Vec<(String,String)>) -> String {
     let mut handles = vec![];
-    // TODO decide smart min/max possible threads
-    for i in 0..5 {
-        let this_url = url.clone();
+    // TODO decide min/max possible threads, possibly based on number of cores?
+    for (debug_file, debug_id) in memory_map {
+        let pdb = debug_file.find(".pdb").unwrap();
+        let (symbol_name, _) = debug_file.split_at(pdb);
+        let symbol_file = format!("{}.sym", symbol_name);
+        let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
         handles.push(thread::spawn(move || {
             let c = Client::new();
             let mut res = c.get(&this_url).send().unwrap();
             let mut body = String::new();
             let _ = res.read_to_string(&mut body);
 
-            (i, body)
+            (symbol_file, body)
         }));
     }
 
     let mut result = String::new();
 
     for handle in handles {
-        let (i, body) = handle.join().unwrap();
-        for c in format!("{:?} {:?}\n", i, body).chars() {
+        let (k, body) = handle.join().unwrap();
+        for c in format!("{:?} {:?}\n", k, body).chars() {
             result.push(c);
         }
     }
@@ -80,7 +93,7 @@ fn client(url: String) -> String {
 fn get_config(value_name: &str) -> String {
     let toml = r#"
         [symbol_urls]
-        public = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1/"
+        public = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1"
     "#;
     // TODO support multiple URLs
     let value: toml::Value = toml.parse().unwrap();
