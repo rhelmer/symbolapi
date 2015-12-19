@@ -2,7 +2,6 @@ extern crate hyper;
 extern crate rustc_serialize;
 extern crate toml;
 
-use std::fs::File;
 use std::io::{Read, Write};
 use std::thread;
 
