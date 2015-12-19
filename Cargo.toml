@@ -6,6 +6,9 @@ authors = ["Robert Helmer <rhelmer@rhelmer.org>"]
 [dependencies.hyper]
 git = "https://github.com/hyperium/hyper.git"
 
+[dependencies.breakpad-symbols]
+git = "https://github.com/rhelmer/breakpad-symbols.git"
+
 [dependencies]
 toml = "0.1"
 rustc-serialize = "0.3.16"
