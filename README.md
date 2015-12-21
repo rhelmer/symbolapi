@@ -23,7 +23,7 @@ Symbolapi is written in Rust and uses Cargo. Make sure you have the latest stabl
 You can then run the symbolapi server:
 
 ```
-  ./target/debug/symbolapi
+  cargo run
 ```
 
 Symbolapi listens on all interfaces and port 8080 by default.
