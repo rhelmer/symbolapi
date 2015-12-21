@@ -7,7 +7,11 @@
   *
   * The goal is to take an HTTP JSON request such as:
   * {"stacks":[
-  *  [[0,11723767],[1, 65802]]],
+  *   [
+  *     [0,11723767],
+  *     [1, 65802]
+  *    ]
+  *  ],
   *  "memoryMap":[
   *    ["xul.pdb","44E4EC8C2F41492B9369D6B9A059577C2"],
   *    ["wntdll.pdb","D74F79EB1F8D4A45ABCD2F476CCABACC2"]
@@ -34,6 +38,7 @@ extern crate log4rs;
 extern crate rustc_serialize;
 extern crate toml;
 
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -52,8 +57,8 @@ use rustc_serialize::json;
 #[derive(RustcDecodable)]
 pub struct SymbolRequest {
     memoryMap: Vec<(String,String)>,
-    // TODO check that key actually fits in 8-bit int
-    stacks: Vec<Vec<(i8,i64)>>,
+    // index, offset
+    stacks: Vec<Vec<(i8,u64)>>,
     version: u8,
 }
 
@@ -98,7 +103,15 @@ fn server(mut req: Request, mut res: Response) {
             debug!("decoded version: {}", decoded.version);
 
             let symbol_url = get_config("symbol_urls.public");
-            let symbol_response = client(symbol_url, decoded.memoryMap);
+
+            // stacks come in as an array, turn into hashmap
+            let mut stack_map: HashMap<i8, u64> = HashMap::new();
+            for stack in &decoded.stacks {
+                let (index, offset) = stack[0];
+                stack_map.insert(index, offset);
+            }
+
+            let symbol_response = client(symbol_url, decoded.memoryMap, stack_map.clone());
             let _ = res.write_all(symbol_response.as_bytes());
 
             res.end().unwrap();
@@ -112,9 +125,9 @@ fn server(mut req: Request, mut res: Response) {
 /**
   * Creates multiple client connections and aggregates result.
   */
-fn client(url: String, memory_map: Vec<(String,String)>) -> String {
+fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, u64>) -> String {
     let mut handles = vec![];
-
+    let mut counter: i8 = 0;
     for (debug_file, debug_id) in memory_map {
         let pdb = debug_file.find(".pdb").unwrap();
         let (symbol_name, _) = debug_file.split_at(pdb);
@@ -128,6 +141,8 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
         symbol_path.push(&debug_id);
         symbol_path.push(&symbol_file);
 
+        let stack_map_copy = stack_map.clone();
+
         // TODO most of the time is spent waiting on I/O, maybe async would be more appropriate?
         // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
@@ -138,11 +153,15 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
 
             // TODO write symbol file to disk, using file locking
 
-            // FIXME fake values, for testing
-            let symbol = symbolize(&symbol_path.as_path(), 0x1010);
+            let mut symbols = vec!();
+            for stack in stack_map_copy.get(&counter) {
+                symbols.push(symbolize(&symbol_path.as_path(), stack.clone()));
+            }
 
-            (symbol_file, symbol)
+            (symbol_file, symbols)
         }));
+
+        counter += 1;
     }
 
     let mut result = SymbolResponse {
@@ -152,11 +171,13 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
 
     for handle in handles {
         // TODO stash this file on disk
-        let (symbol_file, symbol) = handle.join().unwrap();
+        let (symbol_file, symbols) = handle.join().unwrap();
 
-        result.symbolicatedStacks.push(
-            vec!(format!("{} (in {}))", symbol_file, symbol.unwrap()))
-        );
+        for symbol in symbols {
+            result.symbolicatedStacks.push(
+                vec!(format!("{} (in {}))", symbol_file, symbol.unwrap()))
+            );
+        }
         result.knownModules.push(true);
     }
 
