@@ -4,6 +4,26 @@
 /**
   * Symbolapi - a microservice which accepts lists of symbol+addresses, and returns
   * a list of symbolicated functions.
+  *
+  * The goal is to take an HTTP JSON request such as:
+  * {"stacks":[
+  *  [[0,11723767],[1, 65802]]],
+  *  "memoryMap":[
+  *    ["xul.pdb","44E4EC8C2F41492B9369D6B9A059577C2"],
+  *    ["wntdll.pdb","D74F79EB1F8D4A45ABCD2F476CCABACC2"]
+  *  ],
+  *  "version":4
+  * }
+  *
+  * This would download the corresponding symbol files (e.g. from S3), and return the
+  * function names for the corresponding addresses like so:
+  * {"symbolicatedStacks": [
+  *   [
+  *     "XREMain::XRE_mainRun() (in xul.pdb)",
+  *     "KiUserCallbackDispatcher (in wntdll.pdb)"]
+  *   ],
+  *   "knownModules": [true, true]
+  * }
   */
 
 extern crate breakpad_symbols;
@@ -24,18 +44,28 @@ use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
 use rustc_serialize::json;
 
-// required JSON keys are non-snakecase
-#[allow(non_snake_case)]
-#[derive(RustcDecodable)]
 /**
   * Incoming JSON request format.
   */
+// required JSON keys are non-snakecase
+#[allow(non_snake_case)]
+#[derive(RustcDecodable)]
 pub struct SymbolRequest {
     memoryMap: Vec<(String,String)>,
     // TODO check that key actually fits in 8-bit int
     stacks: Vec<Vec<(i8,i64)>>,
-    symbolSources: Vec<String>,
     version: u8,
+}
+
+/**
+  * Outgoing JSON response format.
+  */
+// required JSON keys are non-snakecase
+#[allow(non_snake_case)]
+#[derive(RustcEncodable)]
+pub struct SymbolResponse {
+    symbolicatedStacks: Vec<Vec<String>>,
+    knownModules: Vec<bool>,
 }
 
 fn main() {
@@ -51,7 +81,6 @@ fn main() {
   * Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
   */
 fn server(mut req: Request, mut res: Response) {
-    // TODO log IP address
     info!("incoming connection from {}", req.remote_addr);
 
     match req.method {
@@ -66,12 +95,11 @@ fn server(mut req: Request, mut res: Response) {
 
             debug!("decoded memoryMap: {:?}", decoded.memoryMap);
             debug!("decoded stacks: {:?}", decoded.stacks);
-            debug!("decoded symbolSources: {:?}", decoded.symbolSources);
             debug!("decoded version: {}", decoded.version);
 
             let symbol_url = get_config("symbol_urls.public");
-            let symbols = client(symbol_url, decoded.memoryMap);
-            let _ = res.write_all(symbols.as_bytes());
+            let symbol_response = client(symbol_url, decoded.memoryMap);
+            let _ = res.write_all(symbol_response.as_bytes());
 
             res.end().unwrap();
         },
@@ -108,30 +136,31 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
             let mut res = c.get(&this_url).send().unwrap();
             let _ = res.read_to_string(&mut body);
 
+            // TODO write symbol file to disk, using file locking
+
             // FIXME fake values, for testing
             let symbol = symbolize(&symbol_path.as_path(), 0x1010);
 
-            match symbol {
-                Some(x) => { debug!("{}", x) },
-                None => { panic!("Could not symbolicate (...)") },
-            }
-
-            (symbol_file, body)
+            (symbol_file, symbol)
         }));
     }
 
-    let mut result = String::new();
+    let mut result = SymbolResponse {
+        symbolicatedStacks: vec!(),
+        knownModules: vec!(),
+    };
 
     for handle in handles {
         // TODO stash this file on disk
-        let (symbol_file, body) = handle.join().unwrap();
+        let (symbol_file, symbol) = handle.join().unwrap();
 
-        for c in format!("{:?} {:?}\n", symbol_file, body).chars() {
-            result.push(c);
-        }
+        result.symbolicatedStacks.push(
+            vec!(format!("{} (in {}))", symbol_file, symbol.unwrap()))
+        );
+        result.knownModules.push(true);
     }
 
-    result
+    json::encode(&result).unwrap()
 }
 
 /**
