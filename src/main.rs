@@ -105,11 +105,23 @@ fn server(mut req: Request, mut res: Response) {
             let symbol_url = get_config("symbol_urls.public");
 
             // stacks come in as an array, turn into hashmap
-            let mut stack_map: HashMap<i8, u64> = HashMap::new();
-            for stack in &decoded.stacks {
-                let (index, offset) = stack[0];
-                stack_map.insert(index, offset);
+            let mut stack_map: HashMap<i8, Vec<u64>> = HashMap::new();
+
+            debug!("decoded.stacks: {:?}", decoded.stacks);
+
+            let stacks = decoded.stacks[0].clone();
+            for stack in &stacks {
+                let (index, offset) = *stack;
+
+                let mut offsets = vec!();
+                if stack_map.contains_key(&index) {
+                    offsets = stack_map.get(&index).unwrap().clone();
+                }
+                offsets.push(offset);
+                stack_map.insert(index, offsets);
             }
+
+            debug!("stack_map: {:?}", stack_map);
 
             let symbol_response = client(symbol_url, decoded.memoryMap, stack_map.clone());
             let _ = res.write_all(symbol_response.as_bytes());
@@ -125,7 +137,7 @@ fn server(mut req: Request, mut res: Response) {
 /**
   * Creates multiple client connections and aggregates result.
   */
-fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, u64>) -> String {
+fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, Vec<u64>>) -> String {
     let mut handles = vec![];
     let mut counter: i8 = 0;
     for (debug_file, debug_id) in memory_map {
@@ -154,8 +166,10 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             // TODO write symbol file to disk, using file locking
 
             let mut symbols = vec!();
-            for stack in stack_map_copy.get(&counter) {
-                symbols.push(symbolize(&symbol_path.as_path(), stack.clone()));
+            for stacks in stack_map_copy.get(&counter) {
+                for stack in stacks {
+                    symbols.push(symbolize(&symbol_path.as_path(), *stack));
+                }
             }
 
             (symbol_file, symbols)
