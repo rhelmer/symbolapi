@@ -1,0 +1,9 @@
+# Scan this file for changes every 30 seconds
+refresh_rate = 30
+
+[appender.stdout]
+kind = "console"
+
+[root]
+level = "info"
+appenders = ["stdout"]

@@ -8,6 +8,9 @@
 
 extern crate breakpad_symbols;
 extern crate hyper;
+#[macro_use]
+extern crate log;
+extern crate log4rs;
 extern crate rustc_serialize;
 extern crate toml;
 
@@ -36,9 +39,11 @@ pub struct SymbolRequest {
 }
 
 fn main() {
+    log4rs::init_file("config/log.toml", Default::default()).unwrap();
+
     let address = "0.0.0.0:8080";
 
-    println!("INFO Listening on {}", address);
+    info!("Listening on {}", address);
     Server::http(address).unwrap().handle(server).unwrap();
 }
 
@@ -46,8 +51,8 @@ fn main() {
   * Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
   */
 fn server(mut req: Request, mut res: Response) {
-    // TODO use real logging lib
-    println!("DEBUG incoming connection");
+    // TODO log IP address
+    info!("incoming connection from {}", req.remote_addr);
 
     match req.method {
         hyper::Post => {
@@ -55,14 +60,14 @@ fn server(mut req: Request, mut res: Response) {
 
             let mut buffer = String::new();
             let _ = req.read_to_string(&mut buffer);
-            println!("DEBUG raw POST: {:?}", &buffer);
+            debug!("raw POST: {:?}", &buffer);
 
             let decoded: SymbolRequest = json::decode(&buffer).unwrap();
 
-            println!("DEBUG decoded memoryMap: {:?}", decoded.memoryMap);
-            println!("DEBUG decoded stacks: {:?}", decoded.stacks);
-            println!("DEBUG decoded symbolSources: {:?}", decoded.symbolSources);
-            println!("DEBUG decoded version: {}", decoded.version);
+            debug!("decoded memoryMap: {:?}", decoded.memoryMap);
+            debug!("decoded stacks: {:?}", decoded.stacks);
+            debug!("decoded symbolSources: {:?}", decoded.symbolSources);
+            debug!("decoded version: {}", decoded.version);
 
             let symbol_url = get_config("symbol_urls.public");
             let symbols = client(symbol_url, decoded.memoryMap);
@@ -73,7 +78,7 @@ fn server(mut req: Request, mut res: Response) {
         _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
 
-    println!("DEBUG finished serving request");
+    debug!("finished serving request");
 }
 
 /**
@@ -107,7 +112,7 @@ fn client(url: String, memory_map: Vec<(String,String)>) -> String {
             let symbol = symbolize(&symbol_path.as_path(), 0x1010);
 
             match symbol {
-                Some(x) => { println!("{}", x) },
+                Some(x) => { debug!("{}", x) },
                 None => { panic!("Could not symbolicate (...)") },
             }
 
@@ -145,10 +150,10 @@ fn get_config(value_name: &str) -> String {
 }
 
 /**
-  * Symbolicates incoming
+  * Symbolicates based on incoming address
   */
 fn symbolize(symbol_path: &Path, address: u64) -> Option<String> {
-    println!("DEBUG symbol_path: {:?}", &symbol_path);
+    debug!("symbol_path: {:?}", &symbol_path);
     let sym = SymbolFile::from_file(&symbol_path).unwrap();
 
     Some(sym.functions.lookup(address).unwrap().name.clone())
