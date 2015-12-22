@@ -19,8 +19,9 @@
   *  "version":4
   * }
   *
-  * This would download the corresponding symbol files (e.g. from S3), and return the
-  * function names for the corresponding addresses like so:
+  * The symbolapi service then downloads the corresponding symbol files (e.g. from S3), and returns
+  * the function names for the corresponding addresses (in the "stacks" array) and returns JSON
+  * such as:
   * {"symbolicatedStacks": [
   *   [
   *     "XREMain::XRE_mainRun() (in xul.pdb)",
@@ -39,8 +40,9 @@ extern crate rustc_serialize;
 extern crate toml;
 
 use std::collections::HashMap;
+use std::fs::{File, create_dir_all};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::thread;
 
 use breakpad_symbols::SymbolFile;
@@ -146,8 +148,8 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
         let symbol_file = format!("{}.sym", symbol_name);
         let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
 
-        // TODO get from config
         let mut symbol_path = PathBuf::new();
+        // TODO get from config
         symbol_path.push("testdata/symbols");
         symbol_path.push(&debug_file);
         symbol_path.push(&debug_id);
@@ -155,22 +157,41 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
         let stack_map_copy = stack_map.clone();
 
+        let _ = create_dir_all(&symbol_path.parent().unwrap()).unwrap();
+
         // TODO most of the time is spent waiting on I/O, maybe async would be more appropriate?
         // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
-            let mut body = String::new();
-            let c = Client::new();
-            let mut res = c.get(&this_url).send().unwrap();
-            let _ = res.read_to_string(&mut body);
+            // FIXME use Arc<Mutex<File>> to prevent concurrent writes
+            // TODO only write contents if server version newer
+            if !&symbol_path.exists() {
 
-            // TODO write symbol file to disk, using file locking
+                let mut body = String::new();
+                let c = Client::new();
+                let mut res = c.get(&this_url).send().unwrap();
+                let _ = res.read_to_string(&mut body);
+
+                let mut f = File::create(&symbol_path).unwrap();
+                let _ = f.write_all(body.as_bytes());
+            }
+
+            debug!("symbol_path: {:?}", &symbol_path);
+            // FIXME this is having problems with CRLF
+            // TODO handle error case better here
+            let symbol_provider = SymbolFile::from_file(&symbol_path).unwrap();
 
             let mut symbols = vec!();
             for stacks in stack_map_copy.get(&counter) {
-                for stack in stacks {
-                    symbols.push(symbolize(&symbol_path.as_path(), *stack));
+                for address in stacks {
+                    debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
+                    match symbolize(&symbol_provider, *address) {
+                        Some(x) => symbols.push(x),
+                        // return the address rather than function name if symbol not found
+                        None => symbols.push(format!("0x{:x}", *address)),
+                    }
                 }
             }
+            debug!("symbol_file: {:?}, symbols: {:?}", symbol_file, symbols);
 
             (symbol_file, symbols)
         }));
@@ -184,12 +205,11 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
     };
 
     for handle in handles {
-        // TODO stash this file on disk
         let (symbol_file, symbols) = handle.join().unwrap();
 
         for symbol in symbols {
             result.symbolicatedStacks.push(
-                vec!(format!("{} (in {}))", symbol_file, symbol.unwrap()))
+                vec!(format!("{} (in {}))", symbol, symbol_file))
             );
         }
         result.knownModules.push(true);
@@ -216,9 +236,10 @@ fn get_config(value_name: &str) -> String {
 /**
   * Symbolicates based on incoming address
   */
-fn symbolize(symbol_path: &Path, address: u64) -> Option<String> {
-    debug!("symbol_path: {:?}", &symbol_path);
-    let sym = SymbolFile::from_file(&symbol_path).unwrap();
-
-    Some(sym.functions.lookup(address).unwrap().name.clone())
+// FIXME might as well remove this and call symbol_provider.functions.lookup directly...
+fn symbolize(symbol_provider: &SymbolFile, address: u64) -> Option<String> {
+    match symbol_provider.functions.lookup(address) {
+        Some(x) => return Some(x.name.clone()),
+        None => return None,
+    }
 }
