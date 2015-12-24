@@ -186,7 +186,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             let mut symbols = vec!();
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
-                    //debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
+                    debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
                     match symbol_provider.functions.lookup(*address) {
                         Some(x) => symbols.push(x.name.clone()),
                         // return the address rather than function name if symbol not found
@@ -194,7 +194,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
                     }
                 }
             }
-            //debug!("debug_file: {:?}, symbols: {:?}", debug_file, symbols);
+            debug!("debug_file_name: {:?}, symbols: {:?}", debug_file_name, symbols);
 
             (debug_file_name, symbols)
         }));
