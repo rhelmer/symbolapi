@@ -143,6 +143,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
     let mut handles = vec![];
     let mut counter: i8 = 0;
     for (debug_file, debug_id) in memory_map {
+        let debug_file_name = debug_file.clone();
         let pdb = debug_file.find(".pdb").unwrap();
         let (symbol_name, _) = debug_file.split_at(pdb);
         let symbol_file = format!("{}.sym", symbol_name);
@@ -177,8 +178,10 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
             debug!("symbol_path: {:?}", &symbol_path);
             // FIXME this is having problems with CRLF
-            // TODO handle error case better here
-            let symbol_provider = SymbolFile::from_file(&symbol_path).unwrap();
+            let symbol_provider = match SymbolFile::from_file(&symbol_path) {
+                Ok(x) => x,
+                Err(x) => panic!("symbol provider failed: symbol_path: {:?}, {}", &symbol_path, x),
+            };
 
             let mut symbols = vec!();
             for stacks in stack_map_copy.get(&counter) {
@@ -191,9 +194,9 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
                     }
                 }
             }
-            debug!("symbol_file: {:?}, symbols: {:?}", symbol_file, symbols);
+            //debug!("debug_file: {:?}, symbols: {:?}", debug_file, symbols);
 
-            (symbol_file, symbols)
+            (debug_file_name, symbols)
         }));
 
         counter += 1;
@@ -205,11 +208,11 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
     };
 
     for handle in handles {
-        let (symbol_file, symbols) = handle.join().unwrap();
+        let (debug_file_name, symbols) = handle.join().unwrap();
 
         for symbol in symbols {
             result.symbolicatedStacks.push(
-                vec!(format!("{} (in {}))", symbol, symbol_file))
+                vec!(format!("{} (in {}))", symbol, debug_file_name))
             );
         }
         result.knownModules.push(true);
