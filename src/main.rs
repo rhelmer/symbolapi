@@ -159,7 +159,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
         let _ = create_dir_all(&symbol_path.parent().unwrap()).unwrap();
 
-        // TODO most of the time is spent waiting on I/O, maybe async would be more appropriate?
+        // TODO most of the time is probably spent waiting on I/O, maybe async would be more appropriate?
         // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
             // FIXME use Arc<Mutex<File>> to prevent concurrent writes
@@ -183,11 +183,11 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             let mut symbols = vec!();
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
-                    debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
-                    match symbolize(&symbol_provider, *address) {
-                        Some(x) => symbols.push(x),
+                    //debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
+                    match symbol_provider.functions.lookup(*address) {
+                        Some(x) => symbols.push(x.name.clone()),
                         // return the address rather than function name if symbol not found
-                        None => symbols.push(format!("0x{:x}", *address)),
+                        None => symbols.push(format!("0x{:x}", address)),
                     }
                 }
             }
@@ -231,15 +231,4 @@ fn get_config(value_name: &str) -> String {
     let value: toml::Value = toml.parse().unwrap();
 
     value.lookup(value_name).unwrap().as_str().unwrap().to_string()
-}
-
-/**
-  * Symbolicates based on incoming address
-  */
-// FIXME might as well remove this and call symbol_provider.functions.lookup directly...
-fn symbolize(symbol_provider: &SymbolFile, address: u64) -> Option<String> {
-    match symbol_provider.functions.lookup(address) {
-        Some(x) => return Some(x.name.clone()),
-        None => return None,
-    }
 }
