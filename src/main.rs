@@ -78,7 +78,7 @@ pub struct SymbolResponse {
 fn main() {
     log4rs::init_file("config/log.toml", Default::default()).unwrap();
 
-    let address = "0.0.0.0:8080";
+    let address = "0.0.0.0:5000";
 
     info!("Listening on {}", address);
     Server::http(address).unwrap().handle(server).unwrap();
