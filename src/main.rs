@@ -45,7 +45,7 @@ use std::io::{Read, Write};
 use std::path::{PathBuf};
 use std::thread;
 
-use breakpad_symbols::SymbolFile;
+use breakpad_symbols::{Symbolizer, SimpleSymbolSupplier};
 use hyper::Client;
 use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
@@ -152,43 +152,45 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
         let mut symbol_path = PathBuf::new();
         // TODO get from config
         symbol_path.push("testdata/symbols");
-        symbol_path.push(&debug_file);
-        symbol_path.push(&debug_id);
-        symbol_path.push(&symbol_file);
+
+        let mut full_symbol_path = symbol_path.clone();
+        full_symbol_path.push(&debug_file);
+        full_symbol_path.push(&debug_id);
+        full_symbol_path.push(&symbol_file);
 
         let stack_map_copy = stack_map.clone();
 
-        let _ = create_dir_all(&symbol_path.parent().unwrap()).unwrap();
+        let _ = create_dir_all(&full_symbol_path.parent().unwrap()).unwrap();
+
+        let supplier = SimpleSymbolSupplier::new(vec!(symbol_path.clone()));
 
         // TODO most of the time is probably spent waiting on I/O, maybe async would be more appropriate?
         // TODO decide min/max possible threads, possibly based on number of cores?
         handles.push(thread::spawn(move || {
+
+            let symbolizer = Symbolizer::new(supplier);
             // FIXME use Arc<Mutex<File>> to prevent concurrent writes
             // TODO only write contents if server version newer
-            if !&symbol_path.exists() {
+            if !&full_symbol_path.exists() {
 
                 let mut body = String::new();
                 let c = Client::new();
                 let mut res = c.get(&this_url).send().unwrap();
                 let _ = res.read_to_string(&mut body);
 
-                let mut f = File::create(&symbol_path).unwrap();
+                let mut f = File::create(&full_symbol_path).unwrap();
                 let _ = f.write_all(body.as_bytes());
             }
 
             debug!("symbol_path: {:?}", &symbol_path);
             // FIXME this is having problems with CRLF
-            let symbol_provider = match SymbolFile::from_file(&symbol_path) {
-                Ok(x) => x,
-                Err(x) => panic!("symbol provider failed: symbol_path: {:?}, {}", &symbol_path, x),
-            };
 
             let mut symbols = vec!();
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
                     debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
-                    match symbol_provider.functions.lookup(*address) {
-                        Some(x) => symbols.push(x.name.clone()),
+                    match symbolizer.get_symbol_at_address(&debug_file_name, &debug_id, *address) {
+                        Some(x) => symbols.push(x),
                         // return the address rather than function name if symbol not found
                         None => symbols.push(format!("0x{:x}", address)),
                     }
