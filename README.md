@@ -27,3 +27,16 @@ You can then run the symbolapi server:
 ```
 
 Symbolapi listens on all interfaces and port 8080 by default.
+
+Deploying to Heroku
+-------------------
+
+Create the app endpoint:
+```
+  heroku create symbolapi --buildpack https://github.com/emk/heroku-buildpack-rust.git
+```
+
+Deploy:
+```
+$ git push heroku master
+```
