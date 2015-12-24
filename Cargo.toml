@@ -3,14 +3,11 @@ name = "symbolapi"
 version = "0.0.1"
 authors = ["Robert Helmer <rhelmer@rhelmer.org>"]
 
-[dependencies.hyper]
-git = "https://github.com/hyperium/hyper.git"
-
-[dependencies.breakpad-symbols]
-git = "https://github.com/rhelmer/breakpad-symbols.git"
-
 [dependencies]
 toml = "0.1"
 rustc-serialize = "0.3.16"
 log = "0.3.4"
 log4rs = "0.3.3"
+breakpad-symbols = { git = "https://github.com/rhelmer/breakpad-symbols.git" }
+#breakpad-symbols = { git = "file:///Users/rhelmer/src/breakpad-symbols/.git", rev = "public_fallback" }
+hyper = { git = "https://github.com/hyperium/hyper.git" }
