@@ -130,6 +130,10 @@ fn server(mut req: Request, mut res: Response) {
 
             res.end().unwrap();
         },
+        hyper::Get => {
+            let mut res = res.start().unwrap();
+            let _ = res.write_all("symbolapi, see github.com/rhelmer/symbolapi".as_bytes());
+        },
         _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
 
