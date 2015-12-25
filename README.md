@@ -28,8 +28,47 @@ You can then run the symbolapi server:
 
 Symbolapi listens on all interfaces and port 8080 by default.
 
+
+Deploying on Ubuntu using Nginx
+-------------------------------
+Build a deployable binary:
+
+```
+  sudo apt-get install libssl-dev gcc git
+  git clone https://github.com/rhelmer/symbolapi.git
+  cd symbolapi
+  cargo build --release
+```
+
+This produces a build in `./target/release/symbolapi` that can be deployed
+to your server.
+
+Copy the `symbolapi` binary to your server, and run it under a supervisor
+process (systemd, init script, etc - or tmux in a pinch).
+
+On the server, install and configure Nginx:
+```
+  sudo apt-get install nginx
+```
+
+Override the default location in the default site in
+/etc/nginx/sites-available/default:
+```
+       location / {
+                proxy_pass   http://127.0.0.1:5000;
+        }
+```
+
+Now restart nginx:
+
+```
+  sudo service nginx restart
+```
+
 Deploying to Heroku
 -------------------
+
+NOTE - the Heroku buildpack used below appears to be broken at the moment.
 
 Create the app endpoint:
 ```
