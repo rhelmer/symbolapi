@@ -1,0 +1,17 @@
+{
+    "memoryMap": [
+        [
+            "mozalloc.pdb",
+            "78C16E5E4E674550841DB69A8ADCE06F2"
+        ]
+    ],
+    "stacks": [
+        [
+            [
+                0,
+                5584
+            ]
+        ]
+    ],
+    "version": 4
+}
