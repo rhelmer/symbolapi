@@ -220,7 +220,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
         for symbol in symbols {
             result.symbolicatedStacks.push(
-                format!("{} (in {}))", symbol, debug_file_name)
+                format!("{} (in {})", symbol, debug_file_name)
             );
         }
         result.knownModules.push(true);
