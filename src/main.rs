@@ -95,7 +95,7 @@ fn server(mut req: Request, mut res: Response) {
             let mut res = res.start().unwrap();
 
             let mut buffer = String::new();
-            let _ = req.read_to_string(&mut buffer);
+            req.read_to_string(&mut buffer).unwrap();
             debug!("raw POST: {:?}", &buffer);
 
             let decoded: SymbolRequest = json::decode(&buffer).unwrap();
@@ -126,13 +126,13 @@ fn server(mut req: Request, mut res: Response) {
             debug!("stack_map: {:?}", stack_map);
 
             let symbol_response = client(symbol_url, decoded.memoryMap, stack_map.clone());
-            let _ = res.write_all(symbol_response.as_bytes());
+            res.write_all(symbol_response.as_bytes()).unwrap();
 
             res.end().unwrap();
         },
         hyper::Get => {
             let mut res = res.start().unwrap();
-            let _ = res.write_all("symbolapi, see github.com/rhelmer/symbolapi".as_bytes());
+            res.write_all("symbolapi, see github.com/rhelmer/symbolapi".as_bytes()).unwrap();
         },
         _ => { *res.status_mut() = StatusCode::MethodNotAllowed },
     }
@@ -164,7 +164,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
         let stack_map_copy = stack_map.clone();
 
-        let _ = create_dir_all(&full_symbol_path.parent().unwrap()).unwrap();
+        create_dir_all(&full_symbol_path.parent().unwrap()).unwrap();
 
         let supplier = SimpleSymbolSupplier::new(vec!(symbol_path.clone()));
 
@@ -180,10 +180,10 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
                 let mut body = String::new();
                 let c = Client::new();
                 let mut res = c.get(&this_url).send().unwrap();
-                let _ = res.read_to_string(&mut body);
+                res.read_to_string(&mut body).unwrap();
 
                 let mut f = File::create(&full_symbol_path).unwrap();
-                let _ = f.write_all(body.as_bytes());
+                f.write_all(body.as_bytes()).unwrap();
             }
 
             debug!("symbol_path: {:?}", &symbol_path);
