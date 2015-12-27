@@ -125,6 +125,8 @@ fn server(mut req: Request, mut res: Response) {
 
             debug!("stack_map: {:?}", stack_map);
 
+            // FIXME limit the number of possible threads
+            // TODO maybe push these into a queue and have a thread pool service the queue?
             let symbol_response = client(symbol_url, decoded.memoryMap, stack_map.clone());
             res.write_all(symbol_response.as_bytes()).unwrap();
 
