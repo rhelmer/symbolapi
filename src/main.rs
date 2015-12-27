@@ -71,7 +71,7 @@ pub struct SymbolRequest {
 #[allow(non_snake_case)]
 #[derive(RustcEncodable)]
 pub struct SymbolResponse {
-    symbolicatedStacks: Vec<Vec<String>>,
+    symbolicatedStacks: Vec<String>,
     knownModules: Vec<bool>,
 }
 
@@ -220,7 +220,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
         for symbol in symbols {
             result.symbolicatedStacks.push(
-                vec!(format!("{} (in {}))", symbol, debug_file_name))
+                format!("{} (in {}))", symbol, debug_file_name)
             );
         }
         result.knownModules.push(true);
