@@ -192,19 +192,23 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             // FIXME this is having problems with CRLF
 
             let mut symbols = vec!();
+            let mut known_module = true;
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
                     debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
                     match symbolizer.get_symbol_at_address(&debug_file_name, &debug_id, *address) {
                         Some(x) => symbols.push(x),
                         // return the address rather than function name if symbol not found
-                        None => symbols.push(format!("0x{:x}", address)),
+                        None => {
+                            symbols.push(format!("0x{:x}", address));
+                            known_module = false;
+                        },
                     }
                 }
             }
             debug!("debug_file_name: {:?}, symbols: {:?}", debug_file_name, symbols);
 
-            (debug_file_name, symbols)
+            (debug_file_name, symbols, known_module)
         }));
 
         counter += 1;
@@ -227,14 +231,14 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
     }
 
     for handle in handles {
-        let (debug_file_name, symbols) = handle.join().unwrap();
+        let (debug_file_name, symbols, known_module) = handle.join().unwrap();
 
         for symbol in symbols {
             symbolicated_stacks.push(
                 format!("{} (in {})", symbol, debug_file_name)
             );
         }
-        result.knownModules.push(true);
+        result.knownModules.push(known_module);
     }
 
     // the required result format requires this to be a vec-of-vecs
