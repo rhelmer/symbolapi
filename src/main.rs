@@ -195,7 +195,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
                     if counter == -1 {
-                        symbols.push(format!("{}", address));
+                        symbols.push(format!("0x{:x}", address));
                     } else {
                         debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
                         match symbolizer.get_symbol_at_address(&debug_file_name, &debug_id, *address) {
