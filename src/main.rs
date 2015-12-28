@@ -71,7 +71,7 @@ pub struct SymbolRequest {
 #[allow(non_snake_case)]
 #[derive(RustcEncodable)]
 pub struct SymbolResponse {
-    symbolicatedStacks: Vec<String>,
+    symbolicatedStacks: Vec<Vec<String>>,
     knownModules: Vec<bool>,
 }
 
@@ -215,16 +215,21 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
         knownModules: vec!(),
     };
 
+    let mut symbolicated_stacks = vec!();
+
     for handle in handles {
         let (debug_file_name, symbols) = handle.join().unwrap();
 
         for symbol in symbols {
-            result.symbolicatedStacks.push(
+            symbolicated_stacks.push(
                 format!("{} (in {})", symbol, debug_file_name)
             );
         }
         result.knownModules.push(true);
     }
+
+    // the required result format requires this to be a vec-of-vecs
+    result.symbolicatedStacks.push(symbolicated_stacks);
 
     json::encode(&result).unwrap()
 }
