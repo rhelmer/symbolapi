@@ -217,6 +217,15 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
 
     let mut symbolicated_stacks = vec!();
 
+    // pass anything with index -1 through
+    for stacks in stack_map.get(&-1) {
+        for address in stacks {
+            symbolicated_stacks.push(
+                format!("0x{:x}", address)
+            );
+        }
+    }
+
     for handle in handles {
         let (debug_file_name, symbols) = handle.join().unwrap();
 
