@@ -147,7 +147,7 @@ fn server(mut req: Request, mut res: Response) {
   */
 fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, Vec<u64>>) -> String {
     let mut handles = vec![];
-    let mut counter: i8 = -1;
+    let mut counter: i8 = 0;
     for (debug_file, debug_id) in memory_map {
         let debug_file_name = debug_file.clone();
         let pdb = debug_file.find(".pdb").unwrap();
