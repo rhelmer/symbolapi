@@ -194,15 +194,11 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             let mut symbols = vec!();
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
-                    if counter == -1 {
-                        symbols.push(format!("0x{:x}", address));
-                    } else {
-                        debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
-                        match symbolizer.get_symbol_at_address(&debug_file_name, &debug_id, *address) {
-                            Some(x) => symbols.push(x),
-                            // return the address rather than function name if symbol not found
-                            None => symbols.push(format!("0x{:x}", address)),
-                        }
+                    debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
+                    match symbolizer.get_symbol_at_address(&debug_file_name, &debug_id, *address) {
+                        Some(x) => symbols.push(x),
+                        // return the address rather than function name if symbol not found
+                        None => symbols.push(format!("0x{:x}", address)),
                     }
                 }
             }
