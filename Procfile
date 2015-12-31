@@ -1,1 +1,1 @@
-web: ./target/debug/symbolapi
+web: ./target/release/symbolapi

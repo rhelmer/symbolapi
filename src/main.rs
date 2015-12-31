@@ -193,7 +193,10 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
                 if is_gzipped {
                     let mut raw_body = vec!();
                     res.read_to_end(&mut raw_body).unwrap();
-                    let mut d = GzDecoder::new(&raw_body[..]).unwrap();
+                    let mut d = match GzDecoder::new(&raw_body[..]) {
+                        Ok(x) => x,
+                        Err(x) => panic!("cannot gunzip {:?}, {:?}", raw_body, x)
+                    };
                     d.read_to_string(&mut body).unwrap();
                 } else {
                     res.read_to_string(&mut body).unwrap();
