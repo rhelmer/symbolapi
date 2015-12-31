@@ -41,6 +41,7 @@ extern crate rustc_serialize;
 extern crate toml;
 
 use std::collections::HashMap;
+use std::env;
 use std::fs::{File, create_dir_all};
 use std::io::{Read, Write};
 use std::path::{PathBuf};
@@ -81,7 +82,17 @@ pub struct SymbolResponse {
 fn main() {
     log4rs::init_file("config/log.toml", Default::default()).unwrap();
 
-    let address = "0.0.0.0:5000";
+    let default_port = 5000;
+    let port;
+    match env::var("PORT") {
+        Ok(val) => port = val,
+        Err(_) => {
+            println!("$PORT unset, using default {}", default_port);
+            port = format!("{}", default_port);
+        }
+    }
+
+    let address = &*format!("0.0.0.0:{}", port);
 
     info!("Listening on {}", address);
     Server::http(address).unwrap().handle(server).unwrap();
