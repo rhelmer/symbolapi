@@ -68,11 +68,11 @@ Now restart nginx:
 Deploying to Heroku
 -------------------
 
-NOTE - the Heroku buildpack used below appears to be broken at the moment.
-
 Create the app endpoint:
 ```
-  heroku create symbolapi --buildpack https://github.com/emk/heroku-buildpack-rust.git
+  # FIXME can go back to using emk's buildpack when
+  # https://github.com/emk/heroku-buildpack-rust/pull/7 lands
+  heroku create symbolapi --buildpack https://github.com/rhelmer/heroku-buildpack-rust.git
 ```
 
 Deploy:
