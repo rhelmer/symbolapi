@@ -1,4 +1,4 @@
-// Copyright 2015 Robert Helmer <rhelmer@rhelmer.org>. See the LICENSE
+ // Copyright 2015 Robert Helmer <rhelmer@rhelmer.org>. See the LICENSE
 // file at the top-level directory of this distribution.
 
 /**
@@ -32,6 +32,7 @@
   */
 
 extern crate breakpad_symbols;
+extern crate flate2;
 extern crate hyper;
 #[macro_use]
 extern crate log;
@@ -46,7 +47,9 @@ use std::path::{PathBuf};
 use std::thread;
 
 use breakpad_symbols::{Symbolizer, SimpleSymbolSupplier};
+use flate2::read::GzDecoder;
 use hyper::Client;
+use hyper::header::{ContentEncoding, Encoding};
 use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
 use rustc_serialize::json;
@@ -179,10 +182,22 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             // TODO only write contents if server version newer
             if !&full_symbol_path.exists() {
 
-                let mut body = String::new();
                 let c = Client::new();
                 let mut res = c.get(&this_url).send().unwrap();
-                res.read_to_string(&mut body).unwrap();
+                let is_gzipped = match res.headers.get::<ContentEncoding>() {
+                    Some(x) => x.contains(&Encoding::Gzip),
+                    None => false,
+                };
+
+                let mut body = String::new();
+                if is_gzipped {
+                    let mut raw_body = vec!();
+                    res.read_to_end(&mut raw_body).unwrap();
+                    let mut d = GzDecoder::new(&raw_body[..]).unwrap();
+                    d.read_to_string(&mut body).unwrap();
+                } else {
+                    res.read_to_string(&mut body).unwrap();
+                }
 
                 let mut f = File::create(&full_symbol_path).unwrap();
                 f.write_all(body.as_bytes()).unwrap();

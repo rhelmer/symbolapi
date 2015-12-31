@@ -10,3 +10,4 @@ log = "0.3.4"
 log4rs = "0.3.3"
 breakpad-symbols = { git = "https://github.com/rhelmer/breakpad-symbols.git" }
 hyper = "0.7.1"
+flate2 = "0.2"
