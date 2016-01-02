@@ -98,6 +98,25 @@ fn main() {
     Server::http(address).unwrap().handle(server).unwrap();
 }
 
+fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u64>> {
+    debug!("decoded.stacks: {:?}", decoded_stacks);
+
+    let mut stack_map: HashMap<i8, Vec<u64>> = HashMap::new();
+    for stack in &decoded_stacks[0] {
+        let (index, offset) = *stack;
+
+        let mut offsets = vec!();
+        if stack_map.contains_key(&index) {
+            offsets = stack_map.get(&index).unwrap().clone();
+        }
+        offsets.push(offset);
+        &stack_map.insert(index, offsets);
+    }
+
+    debug!("stack_map: {:?}", stack_map);
+    stack_map
+}
+
 /**
   * Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
   */
@@ -121,23 +140,7 @@ fn server(mut req: Request, mut res: Response) {
             let symbol_url = get_config("symbol_urls.public");
 
             // stacks come in as an array, turn into hashmap
-            let mut stack_map: HashMap<i8, Vec<u64>> = HashMap::new();
-
-            debug!("decoded.stacks: {:?}", decoded.stacks);
-
-            let stacks = decoded.stacks[0].clone();
-            for stack in &stacks {
-                let (index, offset) = *stack;
-
-                let mut offsets = vec!();
-                if stack_map.contains_key(&index) {
-                    offsets = stack_map.get(&index).unwrap().clone();
-                }
-                offsets.push(offset);
-                stack_map.insert(index, offsets);
-            }
-
-            debug!("stack_map: {:?}", stack_map);
+            let mut stack_map = stacks_to_stack_map(decoded.stacks);
 
             // FIXME limit the number of possible threads
             // TODO maybe push these into a queue and have a thread pool service the queue?
