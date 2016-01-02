@@ -140,11 +140,11 @@ fn server(mut req: Request, mut res: Response) {
             let symbol_url = get_config("symbol_urls.public");
 
             // stacks come in as an array, turn into hashmap
-            let mut stack_map = stacks_to_stack_map(decoded.stacks);
+            let stack_map = stacks_to_stack_map(decoded.stacks);
 
             // FIXME limit the number of possible threads
             // TODO maybe push these into a queue and have a thread pool service the queue?
-            let symbol_response = client(symbol_url, decoded.memoryMap, stack_map.clone());
+            let symbol_response = client(symbol_url, decoded.memoryMap, stack_map);
             res.write_all(symbol_response.as_bytes()).unwrap();
 
             res.end().unwrap();
