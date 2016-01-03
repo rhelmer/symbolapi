@@ -221,7 +221,6 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             }
 
             debug!("symbol_path: {:?}", &symbol_path);
-            // FIXME this is having problems with CRLF
 
             let mut symbols = vec!();
             let mut known_module = true;
