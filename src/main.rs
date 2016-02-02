@@ -1,35 +1,36 @@
- // Copyright 2015 Robert Helmer <rhelmer@rhelmer.org>. See the LICENSE
+// Copyright 2015 Robert Helmer <rhelmer@rhelmer.org>. See the LICENSE
 // file at the top-level directory of this distribution.
 
-/**
-  * Symbolapi - a microservice which accepts lists of symbol+addresses, and returns
-  * a list of symbolicated functions.
-  *
-  * The goal is to take an HTTP JSON request such as:
-  * {"stacks":[
-  *   [
-  *     [0,11723767],
-  *     [1, 65802]
-  *    ]
-  *  ],
-  *  "memoryMap":[
-  *    ["xul.pdb","44E4EC8C2F41492B9369D6B9A059577C2"],
-  *    ["wntdll.pdb","D74F79EB1F8D4A45ABCD2F476CCABACC2"]
-  *  ],
-  *  "version":4
-  * }
-  *
-  * The symbolapi service then downloads the corresponding symbol files (e.g. from S3), and returns
-  * the function names for the corresponding addresses (in the "stacks" array) and returns JSON
-  * such as:
-  * {"symbolicatedStacks": [
-  *   [
-  *     "XREMain::XRE_mainRun() (in xul.pdb)",
-  *     "KiUserCallbackDispatcher (in wntdll.pdb)"]
-  *   ],
-  *   "knownModules": [true, true]
-  * }
-  */
+//! # SymbolAPI
+//!
+//! SymbolAPI is a microservice which accepts lists of symbol+addresses, and returns
+//! a list of symbolicated functions.
+//!
+
+/// The goal is to take an HTTP JSON request such as:
+/// {"stacks":[
+///   [
+///     [0,11723767],
+///     [1, 65802]
+///    ]
+///  ],
+///  "memoryMap":[
+///    ["xul.pdb","44E4EC8C2F41492B9369D6B9A059577C2"],
+///    ["wntdll.pdb","D74F79EB1F8D4A45ABCD2F476CCABACC2"]
+///  ],
+///  "version":4
+/// }
+///
+/// The symbolapi service then downloads the corresponding symbol files (e.g. from S3), and returns
+/// the function names for the corresponding addresses (in the "stacks" array) and returns JSON
+/// such as:
+/// {"symbolicatedStacks": [
+///   [
+///     "XREMain::XRE_mainRun() (in xul.pdb)",
+///     "KiUserCallbackDispatcher (in wntdll.pdb)"]
+///   ],
+///   "knownModules": [true, true]
+/// }
 
 extern crate breakpad_symbols;
 extern crate flate2;
@@ -55,9 +56,9 @@ use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
 use rustc_serialize::json;
 
-/**
-  * Incoming JSON request format.
-  */
+///
+/// Incoming JSON request format.
+///
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcDecodable)]
@@ -68,9 +69,9 @@ pub struct SymbolRequest {
     version: u8,
 }
 
-/**
-  * Outgoing JSON response format.
-  */
+///
+/// Outgoing JSON response format.
+///
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcEncodable)]
@@ -117,9 +118,9 @@ fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u6
     stack_map
 }
 
-/**
-  * Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
-  */
+///
+/// Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
+///
 fn server(mut req: Request, mut res: Response) {
     info!("incoming connection from {}", req.remote_addr);
 
@@ -159,9 +160,9 @@ fn server(mut req: Request, mut res: Response) {
     debug!("finished serving request");
 }
 
-/**
-  * Creates multiple client connections and aggregates result.
-  */
+///
+/// Creates multiple client connections and aggregates result.
+///
 fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, Vec<u64>>) -> String {
     let mut handles = vec![];
     let mut counter: i8 = 0;
@@ -226,7 +227,7 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
             let mut known_module = true;
             for stacks in stack_map_copy.get(&counter) {
                 for address in stacks {
-                    debug!("attempt to symbolicate: {} for: {:?}", *address, &symbol_path);
+                    debug!("attempt to symbolicate: {} for: {:?}", *address, &full_symbol_path);
                     match symbolizer.get_symbol_at_address(&debug_file_name, &debug_id, *address) {
                         Some(x) => symbols.push(x),
                         // return the address rather than function name if symbol not found
@@ -278,9 +279,9 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
     json::encode(&result).unwrap()
 }
 
-/**
-  * Returns individual values from the configuration file.
-  */
+///
+/// Returns individual values from the configuration file.
+///
 fn get_config(value_name: &str) -> String {
     // TODO move to actual file, static str for the moment
     let toml: &'static str = r#"
