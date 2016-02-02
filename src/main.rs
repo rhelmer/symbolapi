@@ -98,7 +98,7 @@ fn main() {
     Server::http(address).unwrap().handle(server).unwrap();
 }
 
-/// Stacks come in as a JSON array, but really is a hash map of `<index, address>``
+/// Stacks come in as a JSON array, but really is a hash map of `<index, address>`
 /// where `index` is the position of the `memoryMap` JSON result.
 pub fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u64>> {
     debug!("decoded_stacks: {:?}", decoded_stacks);
@@ -119,7 +119,8 @@ pub fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Ve
     stack_map
 }
 
-/// Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
+/// Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket via the
+/// client function.
 pub fn server(mut req: Request, mut res: Response) {
     info!("incoming connection from {}", req.remote_addr);
 
