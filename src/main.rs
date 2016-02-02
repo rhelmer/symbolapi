@@ -99,8 +99,10 @@ fn main() {
     Server::http(address).unwrap().handle(server).unwrap();
 }
 
+/// Stacks come in as a JSON array, but really is a hash map of `<index, address>``
+/// where `index` is the position of the `memoryMap` JSON result.
 fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u64>> {
-    debug!("decoded.stacks: {:?}", decoded_stacks);
+    debug!("decoded_stacks: {:?}", decoded_stacks);
 
     let mut stack_map: HashMap<i8, Vec<u64>> = HashMap::new();
     for stack in &decoded_stacks[0] {
@@ -139,8 +141,6 @@ fn server(mut req: Request, mut res: Response) {
             debug!("decoded version: {}", decoded.version);
 
             let symbol_url = get_config("symbol_urls.public");
-
-            // stacks come in as an array, turn into hashmap
             let stack_map = stacks_to_stack_map(decoded.stacks);
 
             // FIXME limit the number of possible threads
