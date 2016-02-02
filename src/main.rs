@@ -3,11 +3,12 @@
 
 //! # SymbolAPI
 //!
-//! SymbolAPI is a microservice which accepts lists of symbol+addresses, and returns
-//! a list of symbolicated functions.
+//! SymbolAPI is a microservice which accepts lists of debug symbol names + memory addresses, and
+//! returns a list of symbolicated function names.
 //!
 
 /// The goal is to take an HTTP JSON request such as:
+/// ```
 /// {"stacks":[
 ///   [
 ///     [0,11723767],
@@ -20,10 +21,11 @@
 ///  ],
 ///  "version":4
 /// }
-///
+/// ```
 /// The symbolapi service then downloads the corresponding symbol files (e.g. from S3), and returns
 /// the function names for the corresponding addresses (in the "stacks" array) and returns JSON
 /// such as:
+/// ```
 /// {"symbolicatedStacks": [
 ///   [
 ///     "XREMain::XRE_mainRun() (in xul.pdb)",
@@ -31,6 +33,7 @@
 ///   ],
 ///   "knownModules": [true, true]
 /// }
+/// ```
 
 extern crate breakpad_symbols;
 extern crate flate2;
@@ -56,28 +59,24 @@ use hyper::server::{Server, Request, Response};
 use hyper::status::StatusCode;
 use rustc_serialize::json;
 
-///
 /// Incoming JSON request format.
-///
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcDecodable)]
 pub struct SymbolRequest {
-    memoryMap: Vec<(String,String)>,
+    pub memoryMap: Vec<(String,String)>,
     // index, offset
-    stacks: Vec<Vec<(i8,u64)>>,
-    version: u8,
+    pub stacks: Vec<Vec<(i8,u64)>>,
+    pub version: u8,
 }
 
-///
 /// Outgoing JSON response format.
-///
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcEncodable)]
 pub struct SymbolResponse {
-    symbolicatedStacks: Vec<Vec<String>>,
-    knownModules: Vec<bool>,
+    pub symbolicatedStacks: Vec<Vec<String>>,
+    pub knownModules: Vec<bool>,
 }
 
 fn main() {
@@ -101,7 +100,7 @@ fn main() {
 
 /// Stacks come in as a JSON array, but really is a hash map of `<index, address>``
 /// where `index` is the position of the `memoryMap` JSON result.
-fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u64>> {
+pub fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u64>> {
     debug!("decoded_stacks: {:?}", decoded_stacks);
 
     let mut stack_map: HashMap<i8, Vec<u64>> = HashMap::new();
@@ -120,10 +119,8 @@ fn stacks_to_stack_map(decoded_stacks: Vec<Vec<(i8,u64)>>) -> HashMap<i8, Vec<u6
     stack_map
 }
 
-///
 /// Receives single HTTP requests and demuxes to symbols file fetches from S3 bucket.
-///
-fn server(mut req: Request, mut res: Response) {
+pub fn server(mut req: Request, mut res: Response) {
     info!("incoming connection from {}", req.remote_addr);
 
     match req.method {
@@ -145,7 +142,7 @@ fn server(mut req: Request, mut res: Response) {
 
             // FIXME limit the number of possible threads
             // TODO maybe push these into a queue and have a thread pool service the queue?
-            let symbol_response = client(symbol_url, decoded.memoryMap, stack_map);
+            let symbol_response = json::encode(&client(symbol_url, decoded.memoryMap, stack_map)).unwrap();
             res.write_all(symbol_response.as_bytes()).unwrap();
 
             res.end().unwrap();
@@ -160,10 +157,9 @@ fn server(mut req: Request, mut res: Response) {
     debug!("finished serving request");
 }
 
-///
-/// Creates multiple client connections and aggregates result.
-///
-fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, Vec<u64>>) -> String {
+/// Creates multiple client connections to fetch debug symbols from S3 bucket and symbolicate using
+/// memory and stack maps, aggregates results and returns SymbolResult.
+pub fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, Vec<u64>>) -> SymbolResponse {
     let mut handles = vec![];
     let mut counter: i8 = 0;
     for (debug_file, debug_id) in memory_map {
@@ -276,12 +272,11 @@ fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<i8, 
     // the required result format requires this to be a vec-of-vecs
     result.symbolicatedStacks.push(symbolicated_stacks);
 
-    json::encode(&result).unwrap()
+    result
 }
 
-///
+
 /// Returns individual values from the configuration file.
-///
 fn get_config(value_name: &str) -> String {
     // TODO move to actual file, static str for the moment
     let toml: &'static str = r#"
