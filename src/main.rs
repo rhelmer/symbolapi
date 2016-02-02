@@ -63,6 +63,7 @@ use rustc_serialize::json;
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcDecodable)]
+#[derive(Debug)]
 pub struct SymbolRequest {
     pub memoryMap: Vec<(String,String)>,
     // index, offset
@@ -74,6 +75,7 @@ pub struct SymbolRequest {
 // required JSON keys are non-snakecase
 #[allow(non_snake_case)]
 #[derive(RustcEncodable)]
+#[derive(Debug)]
 pub struct SymbolResponse {
     pub symbolicatedStacks: Vec<Vec<String>>,
     pub knownModules: Vec<bool>,
@@ -141,10 +143,14 @@ pub fn server(mut req: Request, mut res: Response) {
             let symbol_url = get_config("symbol_urls.public");
             let stack_map = stacks_to_stack_map(decoded.stacks);
 
-            // FIXME limit the number of possible threads
+            // FIXME limit the number of possible threads spawned by client()
             // TODO maybe push these into a queue and have a thread pool service the queue?
-            let symbol_response = json::encode(&client(symbol_url, decoded.memoryMap, stack_map)).unwrap();
-            res.write_all(symbol_response.as_bytes()).unwrap();
+            let symbol_response: SymbolResponse = client(symbol_url, decoded.memoryMap, stack_map);
+            let json_response = match json::encode(&symbol_response) {
+                Ok(x) => x,
+                Err(x) => panic!("cannot JSON encode {:?}, {:?}", symbol_response, x)
+            };
+            res.write_all(json_response.as_bytes()).unwrap();
 
             res.end().unwrap();
         },
