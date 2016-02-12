@@ -141,6 +141,7 @@ pub fn server(mut req: Request, mut res: Response) {
             debug!("decoded version: {}", decoded.version);
 
             let symbol_url = get_config("symbol_urls.public");
+            debug!("symbol url: {:?}", symbol_url);
             let stack_map = stacks_to_stack_map(decoded.stacks);
 
             // FIXME limit the number of possible threads spawned by client()
@@ -282,16 +283,23 @@ pub fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<
     result
 }
 
-
 /// Returns individual values from the configuration file.
 fn get_config(value_name: &str) -> String {
-    // TODO move to actual file, static str for the moment
-    let toml: &'static str = r#"
-        [symbol_urls]
-        public = "https://s3-us-west-2.amazonaws.com/org.mozilla.crash-stats.symbols-public/v1"
-    "#;
-    // TODO support multiple URLs
-    let value: toml::Value = toml.parse().unwrap();
+    let mut f = match File::open("config/symbolapi.toml") {
+        Ok(x) => x,
+        Err(x) => panic!("cannot open config file config/symbolapi.toml: {}", x)
+    };
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+    let value: toml::Value = match s.parse() {
+        Ok(x) => x,
+        Err(x) => panic!("cannot parse config file: {:?}", x)
+    };
 
-    value.lookup(value_name).unwrap().as_str().unwrap().to_string()
+    let result = match value.lookup(value_name) {
+        Some(x) => x,
+        None => panic!("config value not found for {}", value_name)
+    };
+
+    result.as_str().unwrap().to_string()
 }
