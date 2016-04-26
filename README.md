@@ -26,8 +26,26 @@ You can then run the symbolapi server:
   cargo run
 ```
 
-Symbolapi listens on all interfaces and port 8080 by default.
+Symbolapi listens on all interfaces and port 5000 by default. The port can
+be changed using the `$PORT` environment variable.
 
+Configuration
+-------------
+Symbolapi configuration is read from `./config/symbolapi.toml`, and logging can be configured in `./config/log.toml`.
+
+Testing
+-------
+Test data is provided in the `./testdata` directory. For instance, to post
+a single DLL and address you can use `curl`:
+```
+  curl -d @testdata/smallreal.json localhost:5000
+```
+
+Assuming this symbol is present on S3, it should return something like the
+following:
+```
+  {"symbolicatedStacks":[["__CppXcptFilter (in mozalloc.pdb)"]],"knownModules":[true]}
+```
 
 Deploying on Ubuntu using Nginx
 -------------------------------

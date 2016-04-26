@@ -178,8 +178,7 @@ pub fn client(url: String, memory_map: Vec<(String,String)>, stack_map: HashMap<
         let this_url = format!("{}/{}/{}/{}", url, debug_file, debug_id, symbol_file);
 
         let mut symbol_path = PathBuf::new();
-        // TODO get from config
-        symbol_path.push("testdata/symbols");
+        symbol_path.push(get_config("symbols.path"));
 
         let mut full_symbol_path = symbol_path.clone();
         full_symbol_path.push(&debug_file);
