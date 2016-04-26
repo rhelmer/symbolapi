@@ -88,7 +88,7 @@ Deploying to Heroku
 
 Create the app endpoint:
 ```
-  # FIXME can go back to using emk's buildpack when
+  # TODO can go back to using emk's buildpack when
   # https://github.com/emk/heroku-buildpack-rust/pull/7 lands
   heroku create symbolapi --buildpack https://github.com/rhelmer/heroku-buildpack-rust.git
 ```
