@@ -22,9 +22,9 @@
 ///  "version":4
 /// }
 /// ```
-/// The symbolapi service then downloads the corresponding symbol files (e.g. from S3), and returns
-/// the function names for the corresponding addresses (in the "stacks" array) and returns JSON
-/// such as:
+/// The symbolapi service then downloads the corresponding symbol files (e.g. from S3), parses them, 
+/// and returns the function names for the corresponding addresses (in the "stacks" array)
+/// and returns JSON such as:
 /// ```
 /// {"symbolicatedStacks": [
 ///   [
